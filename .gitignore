@@ -73,3 +73,7 @@ datasets
 
 # Mimic
 *.npz
+
+models
+g1_ctrl
+unitree_mujoco

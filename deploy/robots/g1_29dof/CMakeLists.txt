@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 project(g1_29dof_controller)
 
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(fmt REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 include_directories(
@@ -17,7 +22,7 @@ include_directories(
 
 link_libraries(
   unitree_sdk2 ddsc ddscxx rt pthread # dds
-  libboost_program_options.a libyaml-cpp.a fmt
+  Boost::program_options yaml-cpp::yaml-cpp fmt::fmt
   ${PROJECT_SOURCE_DIR}/../../thirdparty/onnxruntime-linux-x64-1.22.0/lib/libonnxruntime.so.1.22.0
 )
 
