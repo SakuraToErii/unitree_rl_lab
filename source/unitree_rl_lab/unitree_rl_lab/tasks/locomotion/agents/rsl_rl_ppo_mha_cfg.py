@@ -2,13 +2,11 @@
 # Parallel to BasePPORunnerCfg; does NOT modify the original rsl_rl_ppo_cfg.py.
 
 from isaaclab.utils import configclass
-from isaaclab_rl.rsl_rl import RslRlPpoActorCriticMhaCfg
-
-from unitree_rl_lab.tasks.locomotion.agents.rsl_rl_ppo_cfg import BasePPORunnerCfg
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticMhaCfg, RslRlPpoAlgorithmCfg
 
 
 @configclass
-class BasePPOMhaRunnerCfg(BasePPORunnerCfg):
+class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
     """BasePPORunnerCfg with an MHA history encoder on the actor (+ critic here).
 
     term_dims are fixed for G1-29dof velocity, matching the env obs groups
@@ -23,7 +21,11 @@ class BasePPOMhaRunnerCfg(BasePPORunnerCfg):
     Coupling: if the env's obs terms (order or count) change, update the two
     term_dims lists here so to_time_major stays a correct block transpose.
     """
-
+    num_steps_per_env = 24
+    max_iterations = 10000
+    save_interval = 100
+    experiment_name = ""  # same as task name
+    empirical_normalization = False
     policy = RslRlPpoActorCriticMhaCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
@@ -32,9 +34,26 @@ class BasePPOMhaRunnerCfg(BasePPORunnerCfg):
         actor_obs_normalization=False,
         critic_obs_normalization=False,
         n_history=5,
-        nheads=8,
+        nheads=4,
+        encoder_hidden_dim=256,
+        encoder_dropout=0.1,
         is_learnable_pos_embedding=True,
         use_critic_mha=True,
         actor_term_dims=[3, 3, 3, 29, 29, 29],
         critic_term_dims=[3, 3, 3, 3, 29, 29, 29],
     )
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=1.0,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.01,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=1.0e-3,
+        schedule="adaptive",
+        gamma=0.99,
+        lam=0.95,
+        desired_kl=0.01,
+        max_grad_norm=1.0,
+    )
+    

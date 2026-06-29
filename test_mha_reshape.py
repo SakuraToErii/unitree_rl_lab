@@ -52,7 +52,9 @@ def test_to_time_major():
 def test_encoder_smoke():
     x = build_known_term_major(ACTOR_DIMS, H, B)
     past = to_time_major(x, ACTOR_DIMS, H)[:, :-1, :]
-    enc = LinearMHAEncoder(sum(ACTOR_DIMS), H - 1, hidden_dim=32, nhead=4, is_learnable_pos_embedding=True)
+    enc = LinearMHAEncoder(
+        sum(ACTOR_DIMS), H - 1, hidden_dim=32, nhead=4, is_learnable_pos_embedding=True, dropout=0.1
+    )
     z = enc(past)
     assert z.shape == (B, 32), z.shape
     print("[ok] LinearMHAEncoder forward ->", tuple(z.shape))
@@ -62,10 +64,10 @@ def test_actor_critic_smoke():
     x_a = build_known_term_major(ACTOR_DIMS, H, B)
     x_c = build_known_term_major(CRITIC_DIMS, H, B)
     actor = MHAActor(term_dims=ACTOR_DIMS, num_actions=29, n_history=H,
-                     enc_hidden=256, nheads=8, pos_emb=True,
+                     enc_hidden=256, nheads=8, pos_emb=True, dropout=0.0,
                      hidden_dims=[512, 256, 128], activation="elu")
     critic = MHACritic(term_dims=CRITIC_DIMS, n_history=H,
-                       enc_hidden=256, nheads=8, pos_emb=True,
+                       enc_hidden=256, nheads=8, pos_emb=True, dropout=0.0,
                        hidden_dims=[512, 256, 128], activation="elu")
     mean = actor(x_a)
     val = critic(x_c)
