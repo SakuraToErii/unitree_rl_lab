@@ -36,7 +36,6 @@ class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
         n_history=5,
         nheads=4,
         encoder_hidden_dim=256,
-        encoder_dropout=0.1,
         is_learnable_pos_embedding=True,
         use_critic_mha=True,
         actor_term_dims=[3, 3, 3, 29, 29, 29],
