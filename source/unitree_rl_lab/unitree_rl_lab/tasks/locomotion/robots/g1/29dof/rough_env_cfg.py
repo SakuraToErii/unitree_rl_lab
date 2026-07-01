@@ -37,7 +37,6 @@ class RobotSceneCfg(InteractiveSceneCfg):
             restitution_combine_mode="average", # 和 mujoco 默认行为相近
             static_friction=1.0,
             dynamic_friction=1.0,
-            restitution=0.0,
         ),
         visual_material=sim_utils.MdlFileCfg(
             mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
