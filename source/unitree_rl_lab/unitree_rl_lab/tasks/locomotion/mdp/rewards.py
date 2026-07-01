@@ -9,7 +9,9 @@ except ImportError:
     from isaaclab.utils.math import quat_rotate_inverse as quat_apply_inverse
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.sensors import ContactSensor
+from isaaclab.sensors import ContactSensor, RayCaster
+
+from .terrain_utils import terrain_height_from_ray_hits
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -62,6 +64,25 @@ def upward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("r
     asset: RigidObject = env.scene[asset_cfg.name]
     reward = torch.square(1 - asset.data.projected_gravity_b[:, 2])
     return reward
+
+
+def base_height_l2_relative(
+    env: ManagerBasedRLEnv,
+    target_height: float,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    terrain_height_radius: float = 0.5,
+) -> torch.Tensor:
+    """Penalize root height error relative to terrain near the root."""
+    asset: RigidObject = env.scene[asset_cfg.name]
+    sensor: RayCaster = env.scene[sensor_cfg.name]
+    terrain_height = terrain_height_from_ray_hits(
+        sensor.data.ray_hits_w,
+        asset.data.root_pos_w,
+        env.scene.env_origins[:, 2],
+        terrain_height_radius,
+    )
+    return torch.square(asset.data.root_pos_w[:, 2] - (terrain_height + target_height))
 
 
 def joint_position_penalty(
@@ -118,11 +139,30 @@ def feet_height_body(
 
 
 def foot_clearance_reward(
-    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, target_height: float, std: float, tanh_mult: float
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    target_height: float,
+    std: float,
+    tanh_mult: float,
+    sensor_cfg: SceneEntityCfg | None = None,
+    terrain_height_radius: float = 0.2,
 ) -> torch.Tensor:
     """Reward the swinging feet for clearing a specified height off the ground"""
     asset: RigidObject = env.scene[asset_cfg.name]
-    foot_z_target_error = torch.square(asset.data.body_pos_w[:, asset_cfg.body_ids, 2] - target_height)
+    foot_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids, :]
+    if sensor_cfg is not None:
+        sensor: RayCaster = env.scene[sensor_cfg.name]
+        terrain_height = terrain_height_from_ray_hits(
+            sensor.data.ray_hits_w,
+            foot_pos_w,
+            env.scene.env_origins[:, 2],
+            terrain_height_radius,
+        )
+        foot_height = foot_pos_w[..., 2] - terrain_height
+    else:
+        foot_height = foot_pos_w[..., 2]
+
+    foot_z_target_error = torch.square(foot_height - target_height)
     foot_velocity_tanh = torch.tanh(tanh_mult * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2))
     reward = foot_z_target_error * foot_velocity_tanh
     return torch.exp(-torch.sum(reward, dim=1) / std)
