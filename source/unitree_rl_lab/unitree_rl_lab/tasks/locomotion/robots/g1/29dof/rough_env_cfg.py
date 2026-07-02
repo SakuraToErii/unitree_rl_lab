@@ -184,7 +184,7 @@ class ObservationsCfg:
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5))
         last_action = ObsTerm(func=mdp.last_action)
-        height_scan = ObsTerm(
+        height_scanner = ObsTerm(
             func=mdp.height_scan,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
             noise=Unoise(n_min=-0.1, n_max=0.1),
@@ -231,15 +231,15 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # -- task
-    # 奖励机器人在 yaw 对齐的机体系下跟踪 x/y 线速度命令。
+    # 奖励机器人在 yaw 对齐的机体系下跟踪 x/y 线速度命令。本来是1.0
     track_lin_vel_xy = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=1.0,
+        weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
-    # 奖励机器人跟踪 z 轴角速度命令，也就是转向 yaw rate。
+    # 奖励机器人跟踪 z 轴角速度命令，也就是转向 yaw rate。本来是0.5
     track_ang_vel_z = RewTerm(
-        func=mdp.track_ang_vel_z_exp, weight=0.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
+        func=mdp.track_ang_vel_z_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
 
     # 给仍在正常运行的 episode 一个存活奖励，鼓励机器人持续行走。
@@ -305,7 +305,9 @@ class RewardsCfg:
         weight=-10,
         params={
             "target_height": 0.78,
-            "terrain_height_radius": 0.5,
+            "terrain_height_length": 0.60,
+            "terrain_height_width": 0.50,
+            "terrain_height_statistic": "mean",
             "sensor_cfg": SceneEntityCfg("height_scanner"),
         },
     )
@@ -340,7 +342,10 @@ class RewardsCfg:
             "std": 0.05,
             "tanh_mult": 2.0,
             "target_height": 0.1,
-            "terrain_height_radius": 0.5,
+            "terrain_height_length": 0.40,
+            "terrain_height_width": 0.20,
+            "terrain_height_statistic": "quantile",
+            "terrain_height_quantile": 0.7,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*ankle_roll.*"),
             "sensor_cfg": SceneEntityCfg("height_scanner"),
         },
@@ -367,7 +372,9 @@ class TerminationsCfg:
         func=mdp.root_height_below_minimum_relative,
         params={
             "minimum_height": 0.2,
-            "terrain_height_radius": 0.5,
+            "terrain_height_length": 0.60,
+            "terrain_height_width": 0.50,
+            "terrain_height_statistic": "mean",
             "sensor_cfg": SceneEntityCfg("height_scanner"),
         },
     )

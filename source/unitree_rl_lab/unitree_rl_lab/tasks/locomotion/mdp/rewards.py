@@ -71,16 +71,23 @@ def base_height_l2_relative(
     target_height: float,
     sensor_cfg: SceneEntityCfg,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    terrain_height_radius: float = 0.5,
+    terrain_height_length: float = 0.6,
+    terrain_height_width: float = 0.5,
+    terrain_height_statistic: str = "mean",
+    terrain_height_quantile: float = 0.5,
 ) -> torch.Tensor:
-    """Penalize root height error relative to terrain near the root."""
+    """Penalize root height error relative to terrain in a yaw-aligned rectangle."""
     asset: RigidObject = env.scene[asset_cfg.name]
     sensor: RayCaster = env.scene[sensor_cfg.name]
     terrain_height = terrain_height_from_ray_hits(
-        sensor.data.ray_hits_w,
-        asset.data.root_pos_w,
-        env.scene.env_origins[:, 2],
-        terrain_height_radius,
+        ray_hits_w=sensor.data.ray_hits_w,
+        query_pos_w=asset.data.root_pos_w,
+        env_origin_z=env.scene.env_origins[:, 2],
+        rectangle_length=terrain_height_length,
+        rectangle_width=terrain_height_width,
+        yaw_quat_w=asset.data.root_quat_w,
+        height_statistic=terrain_height_statistic,
+        height_quantile=terrain_height_quantile,
     )
     return torch.square(asset.data.root_pos_w[:, 2] - (terrain_height + target_height))
 
@@ -145,7 +152,10 @@ def foot_clearance_reward(
     std: float,
     tanh_mult: float,
     sensor_cfg: SceneEntityCfg | None = None,
-    terrain_height_radius: float = 0.2,
+    terrain_height_length: float = 0.4,
+    terrain_height_width: float = 0.2,
+    terrain_height_statistic: str = "quantile",
+    terrain_height_quantile: float = 0.7,
 ) -> torch.Tensor:
     """Reward the swinging feet for clearing a specified height off the ground"""
     asset: RigidObject = env.scene[asset_cfg.name]
@@ -153,10 +163,14 @@ def foot_clearance_reward(
     if sensor_cfg is not None:
         sensor: RayCaster = env.scene[sensor_cfg.name]
         terrain_height = terrain_height_from_ray_hits(
-            sensor.data.ray_hits_w,
-            foot_pos_w,
-            env.scene.env_origins[:, 2],
-            terrain_height_radius,
+            ray_hits_w=sensor.data.ray_hits_w,
+            query_pos_w=foot_pos_w,
+            env_origin_z=env.scene.env_origins[:, 2],
+            rectangle_length=terrain_height_length,
+            rectangle_width=terrain_height_width,
+            yaw_quat_w=asset.data.root_quat_w,
+            height_statistic=terrain_height_statistic,
+            height_quantile=terrain_height_quantile,
         )
         foot_height = foot_pos_w[..., 2] - terrain_height
     else:

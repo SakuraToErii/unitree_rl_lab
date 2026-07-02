@@ -74,6 +74,6 @@ datasets
 # Mimic
 *.npz
 
-models
+models*
 g1_ctrl
 unitree_mujoco
