@@ -84,3 +84,31 @@ class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
         actor_term_dims=[3, 29, 29, 29],
         critic_term_dims=[3, 3, 3, 3, 29, 29, 29],
     )
+
+@configclass
+class BasePPOMhaPomdp2RunnerCfg(BasePPOMhaRunnerCfg):
+    """MHA PPO runner for G1-29dof Velocity-POMDP2.
+
+    POMDP2 removes the actor's IMU terms and keeps:
+      policy 90-dim single-step = [velocity_commands, joint_pos_rel, joint_vel_rel, last_action]
+        -> [3, 29, 29], x5 = 305
+      critic 99-dim single-step = [base_lin_vel, base_ang_vel, projected_gravity,
+        velocity_commands, joint_pos_rel, joint_vel_rel, last_action]
+        -> [3, 3, 3, 3, 29, 29, 29], x5 = 495
+    """
+
+    policy = RslRlPpoActorCriticMhaCfg(
+        init_noise_std=1.0,
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
+        activation="elu",
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
+        n_history=5,
+        nheads=4,
+        encoder_hidden_dim=256,
+        is_learnable_pos_embedding=True,
+        use_critic_mha=False,
+        actor_term_dims=[3, 29, 29],
+        critic_term_dims=[3, 3, 3, 3, 29, 29, 29],
+    )
