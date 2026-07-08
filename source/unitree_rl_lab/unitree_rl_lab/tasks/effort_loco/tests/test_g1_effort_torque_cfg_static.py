@@ -52,12 +52,41 @@ class G1EffortTorqueCfgStaticTest(unittest.TestCase):
         self.assertIn("EFFORT_ACTION_CLIP", text)
         self.assertIn("clip=EFFORT_ACTION_CLIP", text)
 
+    def test_g1_effort_env_defines_pomdp_observations_locally_for_torque_tasks(self):
+        text = _read(G1_29DOF / "effort_env_cfg.py")
+
+        self.assertNotIn("pomdp_velocity_env_cfg", text)
+        self.assertNotIn("pomdp2_velocity_env_cfg", text)
+        self.assertIn("class Pomdp1ObservationsCfg", text)
+        self.assertIn("class Pomdp2ObservationsCfg", text)
+        self.assertIn("class Pomdp1RobotEnvCfg(RobotEnvCfg)", text)
+        self.assertIn("class Pomdp1RobotPlayEnvCfg(RobotPlayEnvCfg)", text)
+        self.assertIn("class Pomdp2RobotEnvCfg(RobotEnvCfg)", text)
+        self.assertIn("class Pomdp2RobotPlayEnvCfg(RobotPlayEnvCfg)", text)
+        self.assertIn("observations: Pomdp1ObservationsCfg = Pomdp1ObservationsCfg()", text)
+        self.assertIn("observations: Pomdp2ObservationsCfg = Pomdp2ObservationsCfg()", text)
+
     def test_g1_effort_task_is_registered(self):
         text = _read(G1_29DOF / "__init__.py")
 
-        self.assertIn('id="Unitree-G1-29dof-Effort"', text)
-        self.assertIn("effort_env_cfg:RobotEnvCfg", text)
-        self.assertIn("effort_env_cfg:RobotPlayEnvCfg", text)
+        expected_entries = {
+            'id="Unitree-G1-29dof-Effort"': [
+                "effort_env_cfg:RobotEnvCfg",
+                "effort_env_cfg:RobotPlayEnvCfg",
+            ],
+            'id="Unitree-G1-29dof-Effort-POMDP1"': [
+                "effort_env_cfg:Pomdp1RobotEnvCfg",
+                "effort_env_cfg:Pomdp1RobotPlayEnvCfg",
+            ],
+            'id="Unitree-G1-29dof-Effort-POMDP2"': [
+                "effort_env_cfg:Pomdp2RobotEnvCfg",
+                "effort_env_cfg:Pomdp2RobotPlayEnvCfg",
+            ],
+        }
+        for task_id, entry_points in expected_entries.items():
+            self.assertIn(task_id, text)
+            for entry_point in entry_points:
+                self.assertIn(entry_point, text)
 
 
 if __name__ == "__main__":

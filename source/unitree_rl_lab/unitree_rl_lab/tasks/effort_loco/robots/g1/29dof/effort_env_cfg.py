@@ -12,7 +12,10 @@ torque-speed and friction limits before writing forces to PhysX.
 """
 
 from isaaclab.assets import ArticulationCfg
+from isaaclab.managers import ObservationGroupCfg as ObsGroup
+from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.utils import configclass
+from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from unitree_rl_lab.tasks.effort_loco import mdp
 
@@ -65,6 +68,67 @@ class ActionsCfg:
 
 
 @configclass
+class Pomdp1PolicyObservationsCfg(ObsGroup):
+    """Actor observations for POMDP1: no direct IMU terms, joint velocity retained."""
+
+    velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+    joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+    joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5))
+    last_action = ObsTerm(func=mdp.last_action)
+
+    def __post_init__(self):
+        self.history_length = 5
+        self.enable_corruption = True
+        self.concatenate_terms = True
+
+
+@configclass
+class Pomdp2PolicyObservationsCfg(ObsGroup):
+    """Actor observations for POMDP2: no direct IMU terms or joint velocity."""
+
+    velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+    joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+    last_action = ObsTerm(func=mdp.last_action)
+
+    def __post_init__(self):
+        self.history_length = 5
+        self.enable_corruption = True
+        self.concatenate_terms = True
+
+
+@configclass
+class PrivilegedCriticObservationsCfg(ObsGroup):
+    """Privileged critic observations shared by torque-control POMDP variants."""
+
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
+    projected_gravity = ObsTerm(func=mdp.projected_gravity)
+    velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+    joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
+    joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05)
+    last_action = ObsTerm(func=mdp.last_action)
+
+    def __post_init__(self):
+        self.history_length = 5
+
+
+@configclass
+class Pomdp1ObservationsCfg:
+    """Observation specs for the torque-control POMDP1 task."""
+
+    policy: Pomdp1PolicyObservationsCfg = Pomdp1PolicyObservationsCfg()
+    critic: PrivilegedCriticObservationsCfg = PrivilegedCriticObservationsCfg()
+
+
+@configclass
+class Pomdp2ObservationsCfg:
+    """Observation specs for the torque-control POMDP2 task."""
+
+    policy: Pomdp2PolicyObservationsCfg = Pomdp2PolicyObservationsCfg()
+    critic: PrivilegedCriticObservationsCfg = PrivilegedCriticObservationsCfg()
+
+
+@configclass
 class RobotEnvCfg(BaseRobotEnvCfg):
     """G1 29DOF locomotion environment using torque commands."""
 
@@ -78,3 +142,31 @@ class RobotPlayEnvCfg(BaseRobotPlayEnvCfg):
 
     scene: RobotSceneCfg = RobotSceneCfg(num_envs=32, env_spacing=2.5)
     actions: ActionsCfg = ActionsCfg()
+
+
+@configclass
+class Pomdp1RobotEnvCfg(RobotEnvCfg):
+    """Torque-control POMDP1 variant: hide actor IMU terms, keep joint velocity."""
+
+    observations: Pomdp1ObservationsCfg = Pomdp1ObservationsCfg()
+
+
+@configclass
+class Pomdp1RobotPlayEnvCfg(RobotPlayEnvCfg):
+    """Play/evaluation variant of the torque-control POMDP1 environment."""
+
+    observations: Pomdp1ObservationsCfg = Pomdp1ObservationsCfg()
+
+
+@configclass
+class Pomdp2RobotEnvCfg(RobotEnvCfg):
+    """Torque-control POMDP2 variant: hide actor IMU terms and joint velocity."""
+
+    observations: Pomdp2ObservationsCfg = Pomdp2ObservationsCfg()
+
+
+@configclass
+class Pomdp2RobotPlayEnvCfg(RobotPlayEnvCfg):
+    """Play/evaluation variant of the torque-control POMDP2 environment."""
+
+    observations: Pomdp2ObservationsCfg = Pomdp2ObservationsCfg()
