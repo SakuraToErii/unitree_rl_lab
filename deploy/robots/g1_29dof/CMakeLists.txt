@@ -12,12 +12,20 @@ find_package(fmt REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 include_directories(
+  /opt/unitree_robotics/include
+  /opt/unitree_robotics/include/ddscxx
+  /opt/unitree_robotics/include/iceoryx/v2.0.2
   /usr/include/eigen3
   /usr/local/include/ddscxx # dds
   /usr/local/include/iceoryx/v2.0.2 # dds
   include
   ${PROJECT_SOURCE_DIR}/../../thirdparty/onnxruntime-linux-x64-1.22.0/include
   ${PROJECT_SOURCE_DIR}/../../include/
+)
+
+link_directories(
+  /opt/unitree_robotics/lib64
+  /usr/local/lib64
 )
 
 link_libraries(
