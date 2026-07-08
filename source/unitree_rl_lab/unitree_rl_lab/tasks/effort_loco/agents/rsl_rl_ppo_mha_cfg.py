@@ -1,5 +1,5 @@
-# MHA-history PPO runner cfg for G1-29dof velocity.
-# Parallel to BasePPORunnerCfg; does NOT modify the original rsl_rl_ppo_cfg.py.
+# MHA-history PPO runner cfg for G1-29dof effort control.
+# Parallel to BasePPORunnerCfg.
 
 from isaaclab.utils import configclass
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticMhaCfg, RslRlPpoAlgorithmCfg
@@ -9,7 +9,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticMhaCfg
 class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
     """BasePPORunnerCfg with an MHA history encoder on the actor.
 
-    term_dims are fixed for G1-29dof velocity, matching the env obs groups
+    term_dims are fixed for G1-29dof effort control, matching the env obs groups
     (velocity_env_cfg.py: ObservationsCfg) and their history_length=5:
 
       policy 96-dim single-step = [base_ang_vel, projected_gravity,
@@ -59,7 +59,7 @@ class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
 
 @configclass
 class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
-    """MHA PPO runner for G1-29dof Velocity-POMDP1.
+    """MHA PPO runner for G1-29dof Effort-POMDP1.
 
     POMDP1 removes the actor's IMU terms and keeps:
       policy 90-dim single-step = [velocity_commands, joint_pos_rel, joint_vel_rel, last_action]
@@ -87,7 +87,7 @@ class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
 
 @configclass
 class BasePPOMhaPomdp2RunnerCfg(BasePPOMhaRunnerCfg):
-    """MHA PPO runner for G1-29dof Velocity-POMDP2.
+    """MHA PPO runner for G1-29dof Effort-POMDP2.
 
     POMDP2 removes the actor's IMU terms and keeps:
       policy 90-dim single-step = [velocity_commands, joint_pos_rel, joint_vel_rel, last_action]

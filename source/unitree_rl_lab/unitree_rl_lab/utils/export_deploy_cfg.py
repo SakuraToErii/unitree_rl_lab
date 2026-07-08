@@ -53,7 +53,10 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
     cfg["actions"] = {}
     for action_name, action_term in action_terms:
         term_cfg = action_term.cfg.copy()
-        if isinstance(term_cfg.scale, float):
+        action_type_name = getattr(term_cfg.class_type, "__name__", action_name)
+        action_uses_offset = action_type_name in ["JointPositionAction", "JointVelocityAction"]
+
+        if isinstance(term_cfg.scale, (float, int)):
             term_cfg.scale = [term_cfg.scale for _ in range(action_term.action_dim)]
         else:  # dict
             term_cfg.scale = action_term._scale[0].detach().cpu().numpy().tolist()
@@ -61,17 +64,21 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
         if term_cfg.clip is not None:
             term_cfg.clip = action_term._clip[0].detach().cpu().numpy().tolist()
 
-        if action_name in ["JointPositionAction", "JointVelocityAction"]:
+        if action_uses_offset:
             if term_cfg.use_default_offset:
                 term_cfg.offset = action_term._offset[0].detach().cpu().numpy().tolist()
+            elif isinstance(term_cfg.offset, (float, int)):
+                term_cfg.offset = [term_cfg.offset for _ in range(action_term.action_dim)]
             else:
-                term_cfg.offset = [0.0 for _ in range(action_term.action_dim)]
+                term_cfg.offset = action_term._offset[0].detach().cpu().numpy().tolist()
 
         # clean cfg
         term_cfg = term_cfg.to_dict()
 
-        for _ in ["class_type", "asset_name", "debug_vis", "preserve_order", "use_default_offset"]:
-            del term_cfg[_]
+        for _ in ["class_type", "asset_name", "debug_vis", "preserve_order", "use_default_offset", "use_zero_offset"]:
+            term_cfg.pop(_, None)
+        if not action_uses_offset:
+            term_cfg.pop("offset", None)
         cfg["actions"][action_name] = term_cfg
 
         if action_term._joint_ids == slice(None):
@@ -88,11 +95,14 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
         obs_dims = tuple(obs_cfg.func(env, **obs_cfg.params).shape)
         term_cfg = obs_cfg.copy()
         if term_cfg.scale is not None:
-            scale = term_cfg.scale.detach().cpu().numpy().tolist()
-            if isinstance(scale, float):
+            if hasattr(term_cfg.scale, "detach"):
+                scale = term_cfg.scale.detach().cpu().numpy().tolist()
+            else:
+                scale = term_cfg.scale
+            if isinstance(scale, (float, int)):
                 term_cfg.scale = [scale for _ in range(obs_dims[1])]
             else:
-                term_cfg.scale = scale
+                term_cfg.scale = list(scale)
         else:
             term_cfg.scale = [1.0 for _ in range(obs_dims[1])]
         if term_cfg.clip is not None:
@@ -103,7 +113,7 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
         # clean cfg
         term_cfg = term_cfg.to_dict()
         for _ in ["func", "modifiers", "noise", "flatten_history_dim"]:
-            del term_cfg[_]
+            term_cfg.pop(_, None)
         cfg["observations"][obs_name] = term_cfg
 
     # --- save config file ---

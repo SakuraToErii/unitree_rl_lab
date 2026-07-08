@@ -62,7 +62,6 @@ class ActionsCfg:
         asset_name="robot",
         joint_names=[".*"],
         scale=EFFORT_ACTION_SCALE,
-        offset=0.0,
         clip=EFFORT_ACTION_CLIP,
     )
 
