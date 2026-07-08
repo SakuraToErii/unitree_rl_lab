@@ -68,64 +68,84 @@ class ActionsCfg:
 
 
 @configclass
-class Pomdp1PolicyObservationsCfg(ObsGroup):
-    """Actor observations for POMDP1: no direct IMU terms, joint velocity retained."""
-
-    velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
-    joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-    joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5))
-    last_action = ObsTerm(func=mdp.last_action)
-
-    def __post_init__(self):
-        self.history_length = 5
-        self.enable_corruption = True
-        self.concatenate_terms = True
-
-
-@configclass
-class Pomdp2PolicyObservationsCfg(ObsGroup):
-    """Actor observations for POMDP2: no direct IMU terms or joint velocity."""
-
-    velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
-    joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-    last_action = ObsTerm(func=mdp.last_action)
-
-    def __post_init__(self):
-        self.history_length = 5
-        self.enable_corruption = True
-        self.concatenate_terms = True
-
-
-@configclass
-class PrivilegedCriticObservationsCfg(ObsGroup):
-    """Privileged critic observations shared by torque-control POMDP variants."""
-
-    base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-    base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
-    projected_gravity = ObsTerm(func=mdp.projected_gravity)
-    velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
-    joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
-    joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05)
-    last_action = ObsTerm(func=mdp.last_action)
-
-    def __post_init__(self):
-        self.history_length = 5
-
-
-@configclass
 class Pomdp1ObservationsCfg:
-    """Observation specs for the torque-control POMDP1 task."""
+    """Observation specifications for the torque-control POMDP1 task."""
 
-    policy: Pomdp1PolicyObservationsCfg = Pomdp1PolicyObservationsCfg()
-    critic: PrivilegedCriticObservationsCfg = PrivilegedCriticObservationsCfg()
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5))
+        last_action = ObsTerm(func=mdp.last_action)
+
+        def __post_init__(self):
+            self.history_length = 5
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
+
+    @configclass
+    class CriticCfg(ObsGroup):
+        """Observations for critic group."""
+
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
+        projected_gravity = ObsTerm(func=mdp.projected_gravity)
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05)
+        last_action = ObsTerm(func=mdp.last_action)
+
+        def __post_init__(self):
+            self.history_length = 5
+
+    # privileged observations
+    critic: CriticCfg = CriticCfg()
 
 
 @configclass
 class Pomdp2ObservationsCfg:
-    """Observation specs for the torque-control POMDP2 task."""
+    """Observation specifications for the torque-control POMDP2 task."""
 
-    policy: Pomdp2PolicyObservationsCfg = Pomdp2PolicyObservationsCfg()
-    critic: PrivilegedCriticObservationsCfg = PrivilegedCriticObservationsCfg()
+    @configclass
+    class PolicyCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        last_action = ObsTerm(func=mdp.last_action)
+
+        def __post_init__(self):
+            self.history_length = 5
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: PolicyCfg = PolicyCfg()
+
+    @configclass
+    class CriticCfg(ObsGroup):
+        """Observations for critic group."""
+
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
+        projected_gravity = ObsTerm(func=mdp.projected_gravity)
+        velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05)
+        last_action = ObsTerm(func=mdp.last_action)
+
+        def __post_init__(self):
+            self.history_length = 5
+
+    # privileged observations
+    critic: CriticCfg = CriticCfg()
 
 
 @configclass
