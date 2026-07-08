@@ -34,7 +34,7 @@ gym.register(
 )
 
 gym.register(
-    id="Unitree-G1-29dof-Velocity-POMDP1-MHA",
+    id="Unitree-G1-29dof-Effort-POMDP1-MHA",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -45,7 +45,7 @@ gym.register(
 )
 
 gym.register(
-    id="Unitree-G1-29dof-Velocity-POMDP2-MHA",
+    id="Unitree-G1-29dof-Effort-POMDP2-MHA",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
