@@ -89,8 +89,8 @@ class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
 class BasePPOMhaPomdp2RunnerCfg(BasePPOMhaRunnerCfg):
     """MHA PPO runner for G1-29dof Effort-POMDP2.
 
-    POMDP2 removes the actor's IMU terms and keeps:
-      policy 90-dim single-step = [velocity_commands, joint_pos_rel, joint_vel_rel, last_action]
+    POMDP2 removes the actor's IMU terms and joint velocity, keeping:
+      policy 61-dim single-step = [velocity_commands, joint_pos_rel, last_action]
         -> [3, 29, 29], x5 = 305
       critic 99-dim single-step = [base_lin_vel, base_ang_vel, projected_gravity,
         velocity_commands, joint_pos_rel, joint_vel_rel, last_action]
