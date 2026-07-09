@@ -25,10 +25,9 @@ from .velocity_env_cfg import RobotPlayEnvCfg as BaseRobotPlayEnvCfg
 from .velocity_env_cfg import RobotSceneCfg as BaseRobotSceneCfg
 
 
-# Action scale maps normalized policy output to nominal joint torque commands in N·m.
-# Values use the explicit Unitree actuator same-direction peak torque (Y1) so most
-# policy outputs stay within the model's low-speed torque envelope; the actuator
-# still performs velocity-dependent clipping internally.
+# Per-joint same-direction peak torque (Y1) of the explicit Unitree actuator.
+# Used as the hard action clip (motor limit); the actuator's torque-speed curve
+# still clips the applied torque on top of this.
 EFFORT_ACTION_SCALE = {
     ".*_hip_pitch_joint": 71.0,
     ".*_hip_yaw_joint": 71.0,
@@ -46,6 +45,50 @@ EFFORT_ACTION_SCALE = {
 }
 EFFORT_ACTION_CLIP = {joint_expr: (-limit, limit) for joint_expr, limit in EFFORT_ACTION_SCALE.items()}
 
+# Residual action band: policy outputs are scaled into this fraction of each
+# joint's Y1 peak and added to the standing-torque baseline (NOMINAL_TORQUE).
+# 0.4 is sized for standing/balance; raise toward 0.5-0.7 for dynamic gaits where
+# the residual must also cover the gravity-compensation error vs the default pose.
+RESIDUAL_ACTION_SCALE = {joint_expr: 0.4 * limit for joint_expr, limit in EFFORT_ACTION_SCALE.items()}
+
+# Standing-torque baseline tau0 = G(q_default), collected from a converged
+# standing policy. Per-joint N·m, keyed by exact joint name (left/right differ;
+# see UNITREE_G1_29DOF_CFG.joint_sdk_names for the 29 names).
+# Left empty for now: {} resolves to an all-zeros offset, so the action degrades
+# to pure residual (tau = action * scale). Fill with measured standing torques
+# to enable residual-torque training, e.g. {"left_hip_pitch_joint": 23.4, ...}.
+NOMINAL_TORQUE: dict[str, float] = {
+    "left_hip_pitch_joint": -1.3080,
+    "right_hip_pitch_joint": -0.2781,
+    "waist_yaw_joint": -0.0501,
+    "left_hip_roll_joint": 11.3116,
+    "right_hip_roll_joint": -9.8905,
+    "waist_roll_joint": 0.2910,
+    "left_hip_yaw_joint": -3.4351,
+    "right_hip_yaw_joint": 3.1417,
+    "waist_pitch_joint": 1.1792,
+    "left_knee_joint": -1.7534,
+    "right_knee_joint": -0.5450,
+    "left_shoulder_pitch_joint": 0.6277,
+    "right_shoulder_pitch_joint": 0.7753,
+    "left_ankle_pitch_joint": 4.3950,
+    "right_ankle_pitch_joint": 3.3575,
+    "left_shoulder_roll_joint": 1.6209,
+    "right_shoulder_roll_joint": -1.6599,
+    "left_ankle_roll_joint": 0.5522,
+    "right_ankle_roll_joint": 0.1655,
+    "left_shoulder_yaw_joint": 0.3462,
+    "right_shoulder_yaw_joint": -0.3361,
+    "left_elbow_joint": -0.4057,
+    "right_elbow_joint": -0.3282,
+    "left_wrist_roll_joint": -0.0023,
+    "right_wrist_roll_joint": 0.0021,
+    "left_wrist_pitch_joint": -0.1073,
+    "right_wrist_pitch_joint": -0.0872,
+    "left_wrist_yaw_joint": 0.0580,
+    "right_wrist_yaw_joint": -0.0549,
+}
+
 
 @configclass
 class RobotSceneCfg(BaseRobotSceneCfg):
@@ -56,13 +99,19 @@ class RobotSceneCfg(BaseRobotSceneCfg):
 
 @configclass
 class ActionsCfg:
-    """Pure torque action specification for the MDP."""
+    """Constant-baseline residual torque action: tau = tau0 + residual * scale.
+
+    The Unitree actuator keeps zero PD gains, so the commanded torque is pure
+    feed-forward (standing-torque baseline + policy residual), motor-limited.
+    With NOMINAL_TORQUE empty this reduces to pure residual (tau = action * scale).
+    """
 
     JointEffortAction = mdp.JointEffortActionCfg(
         asset_name="robot",
         joint_names=[".*"],
-        scale=EFFORT_ACTION_SCALE,
+        scale=RESIDUAL_ACTION_SCALE,
         clip=EFFORT_ACTION_CLIP,
+        offset=NOMINAL_TORQUE,
     )
 
 

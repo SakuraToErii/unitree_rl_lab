@@ -78,7 +78,19 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
         for _ in ["class_type", "asset_name", "debug_vis", "preserve_order", "use_default_offset", "use_zero_offset"]:
             term_cfg.pop(_, None)
         if not action_uses_offset:
-            term_cfg.pop("offset", None)
+            # effort-style action: keep a non-trivial baseline offset (standing
+            # torque) for deploy; drop the default zero offset
+            offset = action_term._offset
+            if hasattr(offset, "detach"):
+                offset_list = offset[0].detach().cpu().numpy().tolist()
+            elif isinstance(offset, (float, int)):
+                offset_list = [float(offset)] * action_term.action_dim
+            else:
+                offset_list = []
+            if any(abs(v) > 1e-9 for v in offset_list):
+                term_cfg["offset"] = offset_list
+            else:
+                term_cfg.pop("offset", None)
         cfg["actions"][action_name] = term_cfg
 
         if action_term._joint_ids == slice(None):

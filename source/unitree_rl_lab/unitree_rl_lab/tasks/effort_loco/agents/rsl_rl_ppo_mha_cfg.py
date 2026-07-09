@@ -27,7 +27,7 @@ class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = ""  # same as task name
     empirical_normalization = False
     policy = RslRlPpoActorCriticMhaCfg(
-        init_noise_std=1.0,
+        init_noise_std=0.25,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
@@ -70,7 +70,7 @@ class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
     """
 
     policy = RslRlPpoActorCriticMhaCfg(
-        init_noise_std=1.0,
+        init_noise_std=0.25,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
@@ -98,7 +98,7 @@ class BasePPOMhaPomdp2RunnerCfg(BasePPOMhaRunnerCfg):
     """
 
     policy = RslRlPpoActorCriticMhaCfg(
-        init_noise_std=1.0,
+        init_noise_std=0.25,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
