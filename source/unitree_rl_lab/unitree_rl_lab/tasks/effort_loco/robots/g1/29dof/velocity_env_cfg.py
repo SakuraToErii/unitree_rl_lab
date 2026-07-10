@@ -19,7 +19,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from unitree_rl_lab.assets.robots.unitree import UNITREE_G1_29DOF_CFG as ROBOT_CFG
-from unitree_rl_lab.tasks.locomotion import mdp
+from unitree_rl_lab.tasks.effort_loco import mdp
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     size=(8.0, 8.0),
@@ -143,7 +143,7 @@ class EventCfg:
         mode="reset",
         params={
             "position_range": (1.0, 1.0),
-            "velocity_range": (-1.0, 1.0),
+            "velocity_range": (-0.2, 0.2),
         },
     )
 
@@ -168,7 +168,9 @@ class CommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.1, 0.1), lin_vel_y=(-0.1, 0.1), ang_vel_z=(-0.1, 0.1)
+            # A stationary robot receives about 0.76 average linear tracking
+            # reward over this range, so learning must improve command tracking.
+            lin_vel_x=(-0.3, 0.5), lin_vel_y=(-0.2, 0.2), ang_vel_z=(-0.1, 0.1)
         ),
         limit_ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.5, 1.0), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-0.2, 0.2)
@@ -255,7 +257,11 @@ class RewardsCfg:
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.001)
     joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
+    action_rate = RewTerm(
+        func=mdp.effort_action_rate_l2,
+        weight=-0.05,
+        params={"action_term_name": "JointEffortAction"},
+    )
     dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-5.0)
     energy = RewTerm(func=mdp.energy, weight=-2e-5)
 

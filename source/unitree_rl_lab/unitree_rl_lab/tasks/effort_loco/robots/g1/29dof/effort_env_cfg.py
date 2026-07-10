@@ -51,42 +51,40 @@ EFFORT_ACTION_CLIP = {joint_expr: (-limit, limit) for joint_expr, limit in EFFOR
 # the residual must also cover the gravity-compensation error vs the default pose.
 RESIDUAL_ACTION_SCALE = {joint_expr: 0.4 * limit for joint_expr, limit in EFFORT_ACTION_SCALE.items()}
 
-# Standing-torque baseline tau0 = G(q_default), collected from a converged
-# standing policy. Per-joint N·m, keyed by exact joint name (left/right differ;
-# see UNITREE_G1_29DOF_CFG.joint_sdk_names for the 29 names).
-# Left empty for now: {} resolves to an all-zeros offset, so the action degrades
-# to pure residual (tau = action * scale). Fill with measured standing torques
-# to enable residual-torque training, e.g. {"left_hip_pitch_joint": 23.4, ...}.
+# Approximate implicit-PD torque at the paired standing pose in
+# EFFORT_STANDING_JOINT_POSITION. Collected from model_9400.pt over a continuous
+# 1 s steady window at zero velocity command. This is a residual-action bias;
+# the actor supplies the state-dependent feedback required for balance.
 NOMINAL_TORQUE: dict[str, float] = {
-    "left_hip_pitch_joint": -1.3080,
-    "right_hip_pitch_joint": -0.2781,
-    "waist_yaw_joint": -0.0501,
-    "left_hip_roll_joint": 11.3116,
-    "right_hip_roll_joint": -9.8905,
-    "waist_roll_joint": 0.2910,
-    "left_hip_yaw_joint": -3.4351,
-    "right_hip_yaw_joint": 3.1417,
-    "waist_pitch_joint": 1.1792,
-    "left_knee_joint": -1.7534,
-    "right_knee_joint": -0.5450,
-    "left_shoulder_pitch_joint": 0.6277,
-    "right_shoulder_pitch_joint": 0.7753,
-    "left_ankle_pitch_joint": 4.3950,
-    "right_ankle_pitch_joint": 3.3575,
-    "left_shoulder_roll_joint": 1.6209,
-    "right_shoulder_roll_joint": -1.6599,
-    "left_ankle_roll_joint": 0.5522,
-    "right_ankle_roll_joint": 0.1655,
-    "left_shoulder_yaw_joint": 0.3462,
-    "right_shoulder_yaw_joint": -0.3361,
-    "left_elbow_joint": -0.4057,
-    "right_elbow_joint": -0.3282,
-    "left_wrist_roll_joint": -0.0023,
-    "right_wrist_roll_joint": 0.0021,
-    "left_wrist_pitch_joint": -0.1073,
-    "right_wrist_pitch_joint": -0.0872,
-    "left_wrist_yaw_joint": 0.0580,
-    "right_wrist_yaw_joint": -0.0549,
+    "left_hip_pitch_joint": -1.171482,
+    "right_hip_pitch_joint": -0.392699,
+    "waist_yaw_joint": -0.049220,
+    "left_hip_roll_joint": 11.628835,
+    "right_hip_roll_joint": -9.975743,
+    "waist_roll_joint": 0.391920,
+    "left_hip_yaw_joint": -3.657360,
+    "right_hip_yaw_joint": 3.118077,
+    "waist_pitch_joint": 1.178703,
+    "left_knee_joint": -1.801823,
+    "right_knee_joint": -0.455979,
+    "left_shoulder_pitch_joint": 0.630705,
+    "right_shoulder_pitch_joint": 0.784696,
+    "left_ankle_pitch_joint": 4.369744,
+    "right_ankle_pitch_joint": 3.314344,
+    "left_shoulder_roll_joint": 1.602750,
+    "right_shoulder_roll_joint": -1.674056,
+    "left_ankle_roll_joint": 0.662338,
+    "right_ankle_roll_joint": 0.517337,
+    "left_shoulder_yaw_joint": 0.344647,
+    "right_shoulder_yaw_joint": -0.339807,
+    "left_elbow_joint": -0.398630,
+    "right_elbow_joint": -0.325242,
+    "left_wrist_roll_joint": -0.002183,
+    "right_wrist_roll_joint": 0.002247,
+    "left_wrist_pitch_joint": -0.106291,
+    "right_wrist_pitch_joint": -0.086652,
+    "left_wrist_yaw_joint": 0.057935,
+    "right_wrist_yaw_joint": -0.055295,
 }
 
 
@@ -158,13 +156,15 @@ class Pomdp1ObservationsCfg:
 
 @configclass
 class Pomdp2ObservationsCfg:
-    """Observation specifications for the torque-control POMDP2 task."""
+    """POMDP2 observations: IMU attitude cues with hidden joint velocity."""
 
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
 
         # observation terms (order preserved)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2, noise=Unoise(n_min=-0.2, n_max=0.2))
+        projected_gravity = ObsTerm(func=mdp.projected_gravity, noise=Unoise(n_min=-0.05, n_max=0.05))
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         last_action = ObsTerm(func=mdp.last_action)
@@ -228,7 +228,7 @@ class Pomdp1RobotPlayEnvCfg(RobotPlayEnvCfg):
 
 @configclass
 class Pomdp2RobotEnvCfg(RobotEnvCfg):
-    """Torque-control POMDP2 variant: hide actor IMU terms and joint velocity."""
+    """Torque-control POMDP2 variant: hide actor joint velocity."""
 
     observations: Pomdp2ObservationsCfg = Pomdp2ObservationsCfg()
 

@@ -2,7 +2,9 @@
 # Parallel to BasePPORunnerCfg.
 
 from isaaclab.utils import configclass
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticMhaCfg, RslRlPpoAlgorithmCfg
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
+
+from .effort_policy_cfg import RslRlEffortActorCriticMhaCfg
 
 
 @configclass
@@ -26,8 +28,10 @@ class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
     save_interval = 100
     experiment_name = ""  # same as task name
     empirical_normalization = False
-    policy = RslRlPpoActorCriticMhaCfg(
+    policy = RslRlEffortActorCriticMhaCfg(
         init_noise_std=0.25,
+        noise_std_type="log",
+        actor_output_gain=0.01,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
@@ -45,7 +49,7 @@ class BasePPOMhaRunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.01,
+        entropy_coef=0.001,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=1.0e-3,
@@ -69,8 +73,10 @@ class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
         -> [3, 3, 3, 3, 29, 29, 29], x5 = 495
     """
 
-    policy = RslRlPpoActorCriticMhaCfg(
+    policy = RslRlEffortActorCriticMhaCfg(
         init_noise_std=0.25,
+        noise_std_type="log",
+        actor_output_gain=0.01,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
@@ -89,16 +95,19 @@ class BasePPOMhaPomdp1RunnerCfg(BasePPOMhaRunnerCfg):
 class BasePPOMhaPomdp2RunnerCfg(BasePPOMhaRunnerCfg):
     """MHA PPO runner for G1-29dof Effort-POMDP2.
 
-    POMDP2 removes the actor's IMU terms and joint velocity, keeping:
-      policy 61-dim single-step = [velocity_commands, joint_pos_rel, last_action]
-        -> [3, 29, 29], x5 = 305
+    POMDP2 keeps IMU attitude cues and removes actor joint velocity:
+      policy 67-dim single-step = [base_ang_vel, projected_gravity,
+        velocity_commands, joint_pos_rel, last_action]
+        -> [3, 3, 3, 29, 29], x5 = 335
       critic 99-dim single-step = [base_lin_vel, base_ang_vel, projected_gravity,
         velocity_commands, joint_pos_rel, joint_vel_rel, last_action]
         -> [3, 3, 3, 3, 29, 29, 29], x5 = 495
     """
 
-    policy = RslRlPpoActorCriticMhaCfg(
+    policy = RslRlEffortActorCriticMhaCfg(
         init_noise_std=0.25,
+        noise_std_type="log",
+        actor_output_gain=0.01,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
@@ -109,6 +118,6 @@ class BasePPOMhaPomdp2RunnerCfg(BasePPOMhaRunnerCfg):
         encoder_hidden_dim=256,
         is_learnable_pos_embedding=True,
         use_critic_mha=False,
-        actor_term_dims=[3, 29, 29],
+        actor_term_dims=[3, 3, 3, 29, 29],
         critic_term_dims=[3, 3, 3, 3, 29, 29, 29],
     )

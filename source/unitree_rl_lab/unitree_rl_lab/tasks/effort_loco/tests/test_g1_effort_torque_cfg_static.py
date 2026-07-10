@@ -6,7 +6,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 G1_29DOF = ROOT / "robots" / "g1" / "29dof"
+AGENTS = ROOT / "agents"
+MDP = ROOT / "mdp"
 EXPORT_DEPLOY_CFG = ROOT.parents[1] / "utils" / "export_deploy_cfg.py"
+ZERO_ACTION_PLAY = ROOT.parents[4] / "scripts" / "rsl_rl" / "play_zero_action.py"
+COLLECT_NOMINAL_TORQUE = ROOT.parents[4] / "scripts" / "rsl_rl" / "collect_nominal_torque.py"
 
 
 def _read(path: Path) -> str:
@@ -19,6 +23,9 @@ class G1EffortTorqueCfgStaticTest(unittest.TestCase):
 
         self.assertIn("UNITREE_G1_29DOF_EFFORT_CFG", text)
         self.assertIn("UNITREE_G1_29DOF_CFG.replace", text)
+        self.assertIn("EFFORT_STANDING_JOINT_POSITION", text)
+        self.assertIn("EFFORT_STANDING_ROOT_HEIGHT", text)
+        self.assertIn("init_state.joint_pos = EFFORT_STANDING_JOINT_POSITION.copy()", text)
 
         expected_groups = {
             '"N7520-14.3"': "UnitreeActuatorCfg_N7520_14p3",
@@ -76,6 +83,40 @@ class G1EffortTorqueCfgStaticTest(unittest.TestCase):
         self.assertIn("observations: Pomdp1ObservationsCfg = Pomdp1ObservationsCfg()", text)
         self.assertIn("observations: Pomdp2ObservationsCfg = Pomdp2ObservationsCfg()", text)
 
+        pomdp2_policy = text.split("class Pomdp2ObservationsCfg", 1)[1].split("class CriticCfg", 1)[0]
+        self.assertIn("base_ang_vel = ObsTerm", pomdp2_policy)
+        self.assertIn("projected_gravity = ObsTerm", pomdp2_policy)
+        self.assertNotIn("joint_vel_rel = ObsTerm", pomdp2_policy)
+
+    def test_effort_task_uses_local_commands_reset_and_torque_rate_reward(self):
+        env_text = _read(G1_29DOF / "velocity_env_cfg.py")
+        rewards_text = _read(MDP / "rewards.py")
+
+        self.assertIn("from unitree_rl_lab.tasks.effort_loco import mdp", env_text)
+        self.assertIn('"velocity_range": (-0.2, 0.2)', env_text)
+        self.assertIn("lin_vel_x=(-0.3, 0.5)", env_text)
+        self.assertIn("lin_vel_y=(-0.2, 0.2)", env_text)
+        self.assertIn("func=mdp.effort_action_rate_l2", env_text)
+        self.assertIn('params={"action_term_name": "JointEffortAction"}', env_text)
+        self.assertIn("def effort_action_rate_l2", rewards_text)
+        self.assertIn("current_effort - previous_effort", rewards_text)
+        self.assertIn("effort_normalizer.clamp_min", rewards_text)
+
+    def test_effort_policy_configs_use_centered_output_and_lower_entropy_pressure(self):
+        ppo_text = _read(AGENTS / "rsl_rl_ppo_cfg.py")
+        mha_text = _read(AGENTS / "rsl_rl_ppo_mha_cfg.py")
+        policy_text = _read(AGENTS / "effort_actor_critic.py")
+
+        for text in (ppo_text, mha_text):
+            self.assertIn("actor_output_gain=0.01", text)
+            self.assertIn('noise_std_type="log"', text)
+            self.assertIn("entropy_coef=0.001", text)
+        self.assertIn("nn.init.orthogonal_(layer.weight, gain=gain)", policy_text)
+        self.assertIn("nn.init.zeros_(layer.bias)", policy_text)
+        self.assertIn("_initialize_actor_output(self.actor[-1]", policy_text)
+        self.assertIn("_initialize_actor_output(self.actor.trunk[-1]", policy_text)
+        self.assertIn("actor_term_dims=[3, 3, 3, 29, 29]", mha_text)
+
     def test_export_deploy_cfg_handles_effort_action_without_default_offset_flag(self):
         text = _read(EXPORT_DEPLOY_CFG)
 
@@ -87,6 +128,35 @@ class G1EffortTorqueCfgStaticTest(unittest.TestCase):
         self.assertIn("term_cfg.pop(_, None)", text)
         self.assertIn('term_cfg.pop("offset", None)', text)
         self.assertIn("isinstance(term_cfg.offset, (float, int))", text)
+
+    def test_zero_action_play_script_uses_tau_ref_without_a_policy(self):
+        text = _read(ZERO_ACTION_PLAY)
+
+        self.assertIn('default="Unitree-G1-29dof-Effort-POMDP2"', text)
+        self.assertIn("zero_action = torch.zeros", text)
+        self.assertIn("action_term.processed_actions[0], tau_ref", text)
+        self.assertIn("actuator.stiffness", text)
+        self.assertIn("actuator.damping", text)
+        self.assertIn('command_cfg.ranges.lin_vel_x = (0.0, 0.0)', text)
+        self.assertIn('env_cfg.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)', text)
+        self.assertNotIn("OnPolicyRunner", text)
+        self.assertNotIn("get_checkpoint_path", text)
+        self.assertNotIn("torch.load", text)
+        self.assertNotIn("runner.load", text)
+
+    def test_nominal_torque_collection_uses_a_continuous_paired_steady_window(self):
+        text = _read(COLLECT_NOMINAL_TORQUE)
+
+        self.assertIn('parser.add_argument("--collect_s", type=float, default=1.0', text)
+        self.assertIn('choices=("zero_action", "checkpoint")', text)
+        self.assertIn('default="checkpoint"', text)
+        self.assertIn("env_cfg.observations.policy.enable_corruption = False", text)
+        self.assertIn('env_cfg.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)', text)
+        self.assertIn('contact_sensor.find_bodies(".*ankle_roll.*")', text)
+        self.assertIn("streak[restart] = 0", text)
+        self.assertIn("newly_collected = accepted & (streak >= window_steps)", text)
+        self.assertIn('_format_dict("JOINT_POSITION_REFERENCE"', text)
+        self.assertIn('_format_dict("NOMINAL_TORQUE"', text)
 
     def test_g1_effort_task_is_registered(self):
         text = _read(G1_29DOF / "__init__.py")

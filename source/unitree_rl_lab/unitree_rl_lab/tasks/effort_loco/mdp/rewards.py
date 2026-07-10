@@ -30,6 +30,49 @@ def energy(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("r
     return torch.sum(torch.abs(qvel) * torch.abs(qfrc), dim=-1)
 
 
+def effort_action_rate_l2(env: ManagerBasedRLEnv, action_term_name: str) -> torch.Tensor:
+    """Penalize commanded-effort changes as a fraction of each motor's peak effort.
+
+    The generic action-rate term operates in raw policy coordinates. This effort
+    variant reconstructs the previous processed torque, applies the same physical
+    clipping as the action term, and normalizes the torque delta by the configured
+    motor limits. The constant standing-torque offset therefore cancels naturally.
+    """
+    action_manager = env.action_manager
+    action_term = action_manager.get_term(action_term_name)
+
+    action_start = 0
+    for term_name, term_dim in zip(action_manager.active_terms, action_manager.action_term_dim):
+        if term_name == action_term_name:
+            break
+        action_start += term_dim
+    else:
+        raise ValueError(f"Unknown action term '{action_term_name}'. Active terms: {action_manager.active_terms}")
+
+    action_end = action_start + action_term.action_dim
+    previous_raw_action = action_manager.prev_action[:, action_start:action_end]
+    previous_effort = previous_raw_action * action_term._scale + action_term._offset
+    current_effort = action_term.processed_actions
+
+    if action_term.cfg.clip is not None:
+        effort_clip = action_term._clip
+        previous_effort = torch.clamp(
+            previous_effort,
+            min=effort_clip[:, :, 0],
+            max=effort_clip[:, :, 1],
+        )
+        effort_normalizer = torch.maximum(effort_clip[:, :, 0].abs(), effort_clip[:, :, 1].abs())
+    else:
+        effort_normalizer = torch.as_tensor(
+            action_term._scale,
+            device=current_effort.device,
+            dtype=current_effort.dtype,
+        ).abs()
+
+    normalized_effort_delta = (current_effort - previous_effort) / effort_normalizer.clamp_min(1.0e-6)
+    return torch.sum(torch.square(normalized_effort_delta), dim=1)
+
+
 def stand_still(
     env: ManagerBasedRLEnv, command_name: str = "base_velocity", asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
