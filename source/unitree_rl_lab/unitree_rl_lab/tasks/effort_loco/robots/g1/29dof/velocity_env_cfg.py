@@ -243,7 +243,7 @@ class RewardsCfg:
     # -- task
     track_lin_vel_xy = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=1.0,
+        weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
     track_ang_vel_z = RewTerm(
@@ -256,7 +256,7 @@ class RewardsCfg:
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.001)
-    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
+    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-1.5e-7)
     action_rate = RewTerm(
         func=mdp.effort_action_rate_l2,
         weight=-0.05,
@@ -323,7 +323,7 @@ class RewardsCfg:
     )
     feet_clearance = RewTerm(
         func=mdp.foot_clearance_reward,
-        weight=1.0,
+        weight=0.5,
         params={
             "std": 0.05,
             "tanh_mult": 2.0,
@@ -379,7 +379,7 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 4
+        self.decimation = 1
         self.episode_length_s = 20.0
         # simulation settings
         self.sim.dt = 0.005

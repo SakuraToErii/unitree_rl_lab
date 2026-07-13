@@ -11,7 +11,8 @@ from .effort_policy_cfg import RslRlEffortActorCriticCfg
 
 @configclass
 class BasePPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    num_steps_per_env = 24
+    # 96 steps at 200 Hz preserves the previous 0.48 s rollout horizon.
+    num_steps_per_env = 96
     max_iterations = 50000
     save_interval = 100
     experiment_name = ""  # same as task name
@@ -33,8 +34,8 @@ class BasePPORunnerCfg(RslRlOnPolicyRunnerCfg):
         num_mini_batches=4,
         learning_rate=1.0e-3,
         schedule="adaptive",
-        gamma=0.99,
-        lam=0.95,
+        gamma=0.9975,
+        lam=0.9873,
         desired_kl=0.01,
         max_grad_norm=1.0,
     )
